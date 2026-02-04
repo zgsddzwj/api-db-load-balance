@@ -26,6 +26,12 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/hello")
+def hello():
+    """简单的 Hello World 端点。"""
+    return {"message": "Hello, World!"}
+
+
 class ItemCreate(BaseModel):
     name: str
 
