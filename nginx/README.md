@@ -10,6 +10,8 @@
 | `nginx.conf.single-host` | Nginx单机部署配置（使用Docker容器名称作为后端） |
 | `docker-compose.yml` | Docker Compose配置文件（仅Nginx，后端API需单独部署） |
 | `docker-compose.single-host.yml` | **单机部署方案**：在一台服务器上运行Nginx和多个API容器 |
+| `SINGLE_HOST_DEPLOYMENT.md` | 单机部署详细指南 |
+| `INTRANET_DEPLOYMENT.md` | **内网部署指南**（无公网IP服务器） |
 | `SETUP_GUIDE.md` | **完整搭建指南**，从零到一详细步骤（推荐先阅读） |
 | `ssl-setup.sh` | SSL证书申请和配置脚本（Let's Encrypt） |
 | `monitor.sh` | 监控脚本，用于健康检查、日志分析、性能统计 |
@@ -43,12 +45,15 @@ docker-compose -f docker-compose.single-host.yml down
 
 **单机部署特点：**
 
-- ✅ 只需一台服务器
+- ✅ 只需一台服务器（内网服务器也可以）
 - ✅ 使用Docker容器模拟多台服务器
 - ✅ 完全本地测试和学习
 - ✅ 可以轻松扩展API实例数量
+- ✅ **支持内网部署**（无公网IP也可以）
 - ⚠️ 适合开发、测试和小规模部署
 - ⚠️ 生产环境建议使用多台服务器
+
+> 💡 **内网服务器？** 查看 [INTRANET_DEPLOYMENT.md](INTRANET_DEPLOYMENT.md) 了解内网部署详细说明
 
 **配置说明：**
 
