@@ -36,7 +36,7 @@ API 连接 2 台 DB 时：**写请求走主库，读请求走从库**，实现�
    - `POST /items`：往**主库**写一条。
 
 3. **与 Nginx 负载均衡配合**  
-   部署两台（或多台） API 实例，每台使用相同主从配置、无状态运行。在 [nginx/nginx.conf](../nginx/nginx.conf) 的 `upstream api_backend` 中填写这两台实例的 IP 与端口，Nginx 轮询转发；健康检查可指向各实例的 `/health`。
+   部署两台（或多台） API 实例，每台使用相同主从配置、无状态运行。在 [nginx/nginx.conf](./nginx/nginx.conf) 的 `upstream api_backend` 中填写这两台实例的 IP 与端口，Nginx 轮询转发；健康检查可指向各实例的 `/health`。
 
 ### 方式二：中间件
 
