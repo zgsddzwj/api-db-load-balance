@@ -6,17 +6,60 @@
 
 | 文件 | 说明 |
 |------|------|
-| `nginx.conf` | Nginx主配置文件，包含负载均衡、SSL、限流、缓存等完整配置 |
-| `docker-compose.yml` | Docker Compose配置文件，用于容器化部署 |
+| `nginx.conf` | Nginx主配置文件（多服务器部署），包含负载均衡、SSL、限流、缓存等完整配置 |
+| `nginx.conf.single-host` | Nginx单机部署配置（使用Docker容器名称作为后端） |
+| `docker-compose.yml` | Docker Compose配置文件（仅Nginx，后端API需单独部署） |
+| `docker-compose.single-host.yml` | **单机部署方案**：在一台服务器上运行Nginx和多个API容器 |
 | `SETUP_GUIDE.md` | **完整搭建指南**，从零到一详细步骤（推荐先阅读） |
 | `ssl-setup.sh` | SSL证书申请和配置脚本（Let's Encrypt） |
 | `monitor.sh` | 监控脚本，用于健康检查、日志分析、性能统计 |
 
 ## 快速开始
 
-### 方式一：使用完整指南（推荐）
+### 🎯 单机部署方案（推荐：只有一台服务器）
+
+**如果您只有一台服务器，可以使用Docker在一台机器上运行Nginx和多个API服务容器：**
+
+```bash
+# 1. 进入nginx目录
+cd nginx/
+
+# 2. 使用单机部署配置启动所有服务（Nginx + 2个API实例）
+docker-compose -f docker-compose.single-host.yml up -d
+
+# 3. 查看所有服务状态
+docker-compose -f docker-compose.single-host.yml ps
+
+# 4. 查看日志
+docker-compose -f docker-compose.single-host.yml logs -f
+
+# 5. 验证负载均衡
+curl http://localhost/health
+# 多次请求，观察日志中的upstream在不同API容器间轮换
+
+# 6. 停止服务
+docker-compose -f docker-compose.single-host.yml down
+```
+
+**单机部署特点：**
+
+- ✅ 只需一台服务器
+- ✅ 使用Docker容器模拟多台服务器
+- ✅ 完全本地测试和学习
+- ✅ 可以轻松扩展API实例数量
+- ⚠️ 适合开发、测试和小规模部署
+- ⚠️ 生产环境建议使用多台服务器
+
+**配置说明：**
+
+- 后端API通过Docker网络名称访问（`api1:8080`, `api2:8080`）
+- 如需更多API实例，在`docker-compose.single-host.yml`中添加`api3`、`api4`等
+- 数据库可以使用外部数据库或添加数据库容器到docker-compose中
+
+### 方式一：使用完整指南（多服务器部署）
 
 **首次部署请先阅读 [SETUP_GUIDE.md](SETUP_GUIDE.md)**，包含：
+
 - 服务器环境准备
 - Docker环境搭建
 - Nginx容器部署
@@ -24,7 +67,7 @@
 - 高级功能配置
 - 监控和故障排查
 
-### 方式二：Docker Compose部署（快速）
+### 方式二：Docker Compose部署（仅Nginx，后端API需单独部署）
 
 ```bash
 # 1. 修改nginx.conf中的后端服务器IP
@@ -58,7 +101,16 @@ sudo nginx -s reload
 
 ### 负载均衡策略
 
+**多服务器部署（nginx.conf）：**
+
 - **upstream api_backend**：后端为 `192.168.1.10:8080` 与 `192.168.1.11:8080`，请按实际 IP/端口修改。
+
+**单机部署（nginx.conf.single-host）：**
+
+- **upstream api_backend**：后端为 `api1:8080` 与 `api2:8080`（Docker容器名称），无需修改。
+
+**通用配置：**
+
 - **max_fails=2 fail_timeout=30s**：连续 2 次失败则摘除该节点 30 秒，之后自动恢复。
 - **策略**：
   - 默认轮询（round_robin）
@@ -69,16 +121,18 @@ sudo nginx -s reload
 ### SSL/HTTPS配置
 
 1. **申请证书**（使用提供的脚本）：
+
 ```bash
 chmod +x ssl-setup.sh
 sudo ./ssl-setup.sh api.example.com your-email@example.com
 ```
 
-2. **修改nginx.conf**：
+1. **修改nginx.conf**：
    - 将 `server_name _;` 改为实际域名
    - 确保SSL证书路径正确
 
-3. **重启容器**：
+2. **重启容器**：
+
 ```bash
 docker-compose restart nginx
 ```
@@ -86,6 +140,7 @@ docker-compose restart nginx
 ### 监控和日志
 
 **使用监控脚本**：
+
 ```bash
 chmod +x monitor.sh
 ./monitor.sh              # 运行一次检查
@@ -93,6 +148,7 @@ chmod +x monitor.sh
 ```
 
 **查看日志**：
+
 ```bash
 # 访问日志
 tail -f logs/access.log
@@ -128,6 +184,7 @@ docker-compose logs -f nginx
 ## 故障排查
 
 遇到问题？请参考：
+
 1. [SETUP_GUIDE.md](SETUP_GUIDE.md) 中的"故障排查"章节
 2. 使用监控脚本诊断：`./monitor.sh`
 3. 查看Nginx错误日志：`tail -f logs/error.log`

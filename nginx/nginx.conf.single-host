@@ -1,0 +1,168 @@
+# ============================================================================
+# Nginx 单机部署配置
+# ============================================================================
+# 适用于：在一台服务器上使用Docker容器运行Nginx和多个API服务
+# 后端API服务通过Docker网络名称访问（如：api1:8080, api2:8080）
+# ============================================================================
+
+worker_processes auto;
+worker_rlimit_nofile 65535;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 4096;
+    use epoll;
+    multi_accept on;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    
+    server_tokens off;
+    
+    # 日志格式
+    log_format detailed '$remote_addr - $remote_user [$time_local] '
+                        '"$request" $status $body_bytes_sent '
+                        '"$http_referer" "$http_user_agent" '
+                        'upstream=$upstream_addr '
+                        'rt=$request_time';
+    
+    access_log /var/log/nginx/access.log detailed;
+    
+    # 性能优化
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    keepalive_requests 100;
+    types_hash_max_size 2048;
+    
+    client_body_buffer_size 128k;
+    client_max_body_size 10m;
+    client_header_buffer_size 1k;
+    large_client_header_buffers 4 4k;
+    
+    client_body_timeout 12;
+    client_header_timeout 12;
+    send_timeout 10;
+    
+    # 压缩配置
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1000;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml text/javascript 
+               application/json application/javascript application/xml+rss 
+               application/rss+xml;
+    
+    # 限流配置
+    limit_conn_zone $binary_remote_addr zone=conn_limit_per_ip:10m;
+    limit_req_zone $binary_remote_addr zone=req_limit_per_ip:10m rate=10r/s;
+    
+    # ========================================================================
+    # 上游服务器配置（使用Docker容器名称）
+    # ========================================================================
+    # 单机部署：使用Docker网络中的容器名称作为后端地址
+    upstream api_backend {
+        # 使用Docker Compose服务名称
+        server api1:8080 max_fails=2 fail_timeout=30s;
+        server api2:8080 max_fails=2 fail_timeout=30s;
+        
+        # 如果需要更多实例，可以添加：
+        # server api3:8080 max_fails=2 fail_timeout=30s;
+        # server api4:8080 max_fails=2 fail_timeout=30s;
+        
+        # 加权轮询示例：
+        # server api1:8080 weight=3 max_fails=2 fail_timeout=30s;
+        # server api2:8080 weight=2 max_fails=2 fail_timeout=30s;
+    }
+    
+    # ========================================================================
+    # HTTP服务器配置（80端口）
+    # ========================================================================
+    server {
+        listen 80;
+        server_name _;  # 替换为实际域名或使用localhost
+        
+        # 安全：禁止访问隐藏文件
+        location ~ /\. {
+            deny all;
+            access_log off;
+            log_not_found off;
+        }
+        
+        # 健康检查端点
+        location /health {
+            proxy_pass http://api_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            access_log off;
+        }
+        
+        # 主location配置
+        location / {
+            # 限流配置
+            limit_conn conn_limit_per_ip 10;
+            limit_req zone=req_limit_per_ip burst=20 nodelay;
+            
+            # 代理配置
+            proxy_pass http://api_backend;
+            proxy_http_version 1.1;
+            
+            # 代理头设置
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Forwarded-Port $server_port;
+            
+            # 超时配置
+            proxy_connect_timeout 10s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
+            
+            # 缓冲配置
+            proxy_buffering on;
+            proxy_buffer_size 4k;
+            proxy_buffers 8 4k;
+            proxy_busy_buffers_size 8k;
+        }
+    }
+    
+    # ========================================================================
+    # HTTPS服务器配置（443端口）- 可选
+    # ========================================================================
+    # 如果不需要HTTPS，可以注释掉整个server块
+    # server {
+    #     listen 443 ssl http2;
+    #     server_name _;  # 替换为实际域名
+    #     
+    #     ssl_certificate /etc/nginx/ssl/fullchain.pem;
+    #     ssl_certificate_key /etc/nginx/ssl/privkey.pem;
+    #     ssl_protocols TLSv1.2 TLSv1.3;
+    #     ssl_ciphers HIGH:!aNULL:!MD5;
+    #     ssl_prefer_server_ciphers on;
+    #     ssl_session_cache shared:SSL:10m;
+    #     ssl_session_timeout 10m;
+    #     
+    #     # 安全头
+    #     add_header Strict-Transport-Security "max-age=31536000" always;
+    #     add_header X-Frame-Options "SAMEORIGIN" always;
+    #     add_header X-Content-Type-Options "nosniff" always;
+    #     
+    #     location / {
+    #         limit_conn conn_limit_per_ip 10;
+    #         limit_req zone=req_limit_per_ip burst=20 nodelay;
+    #         proxy_pass http://api_backend;
+    #         proxy_http_version 1.1;
+    #         proxy_set_header Host $host;
+    #         proxy_set_header X-Real-IP $remote_addr;
+    #         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #         proxy_set_header X-Forwarded-Proto $scheme;
+    #     }
+    # }
+}

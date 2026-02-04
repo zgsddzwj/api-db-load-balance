@@ -1,0 +1,131 @@
+version: '3.8'
+
+# ============================================================================
+# 单机部署方案：在一台服务器上运行Nginx负载均衡和多个API服务
+# ============================================================================
+# 使用方法：
+#   docker-compose -f docker-compose.single-host.yml up -d
+# ============================================================================
+
+services:
+  # Nginx负载均衡器
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-lb
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Nginx配置文件（使用单机版配置）
+      - ./nginx.conf.single-host:/etc/nginx/nginx.conf:ro
+      # 日志目录
+      - ./logs:/var/log/nginx
+      # SSL证书目录
+      - ./ssl:/etc/nginx/ssl:ro
+      # 缓存目录
+      - ./cache:/var/cache/nginx
+    networks:
+      - app-network
+    depends_on:
+      - api1
+      - api2
+    environment:
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # API服务实例1
+  api1:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+    container_name: api-service-1
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - app-network
+    environment:
+      - TZ=Asia/Shanghai
+      # 数据库配置（从.env文件读取或直接设置）
+      - DB_PRIMARY_HOST=${DB_PRIMARY_HOST:-db-primary}
+      - DB_PRIMARY_PORT=${DB_PRIMARY_PORT:-3306}
+      - DB_PRIMARY_USER=${DB_PRIMARY_USER:-root}
+      - DB_PRIMARY_PASSWORD=${DB_PRIMARY_PASSWORD:-password}
+      - DB_PRIMARY_DATABASE=${DB_PRIMARY_DATABASE:-app_db}
+      - DB_REPLICA_HOST=${DB_REPLICA_HOST:-db-replica}
+      - DB_REPLICA_PORT=${DB_REPLICA_PORT:-3306}
+      - DB_REPLICA_USER=${DB_REPLICA_USER:-root}
+      - DB_REPLICA_PASSWORD=${DB_REPLICA_PASSWORD:-password}
+      - DB_REPLICA_DATABASE=${DB_REPLICA_DATABASE:-app_db}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # API服务实例2
+  api2:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+    container_name: api-service-2
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      - app-network
+    environment:
+      - TZ=Asia/Shanghai
+      # 数据库配置（与api1相同）
+      - DB_PRIMARY_HOST=${DB_PRIMARY_HOST:-db-primary}
+      - DB_PRIMARY_PORT=${DB_PRIMARY_PORT:-3306}
+      - DB_PRIMARY_USER=${DB_PRIMARY_USER:-root}
+      - DB_PRIMARY_PASSWORD=${DB_PRIMARY_PASSWORD:-password}
+      - DB_PRIMARY_DATABASE=${DB_PRIMARY_DATABASE:-app_db}
+      - DB_REPLICA_HOST=${DB_REPLICA_HOST:-db-replica}
+      - DB_REPLICA_PORT=${DB_REPLICA_PORT:-3306}
+      - DB_REPLICA_USER=${DB_REPLICA_USER:-root}
+      - DB_REPLICA_PASSWORD=${DB_REPLICA_PASSWORD:-password}
+      - DB_REPLICA_DATABASE=${DB_REPLICA_DATABASE:-app_db}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 可选：如果需要更多API实例，可以添加api3、api4等
+  # api3:
+  #   ... (配置与api2相同)
+
+networks:
+  app-network:
+    driver: bridge
+    name: app-network
+
+# ============================================================================
+# 使用说明：
+# 
+# 1. 如果API服务使用外部数据库，可以注释掉api1和api2的数据库环境变量，
+#    改为使用外部数据库地址
+#
+# 2. 如果API服务还没有Dockerfile，可以：
+#    - 使用现有的API服务（修改nginx.conf.single-host中的upstream地址）
+#    - 或者创建app/Dockerfile（见下方示例）
+#
+# 3. 启动服务：
+#    docker-compose -f docker-compose.single-host.yml up -d
+#
+# 4. 查看日志：
+#    docker-compose -f docker-compose.single-host.yml logs -f
+#
+# 5. 停止服务：
+#    docker-compose -f docker-compose.single-host.yml down
+# ============================================================================
