@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-lb
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Nginx配置文件
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # 日志目录
+      - ./logs:/var/log/nginx
+      # SSL证书目录（如果使用Let's Encrypt，需要挂载）
+      - ./ssl:/etc/nginx/ssl:ro
+      # Let's Encrypt证书目录（可选，如果使用certbot）
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      # 静态文件目录（可选）
+      - ./html:/usr/share/nginx/html:ro
+      # 缓存目录（如果启用proxy_cache）
+      - ./cache:/var/cache/nginx
+    networks:
+      - nginx-network
+    environment:
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  nginx-network:
+    driver: bridge
+    name: nginx-network
+
+# 如果需要连接到其他Docker网络（如API服务网络），可以添加：
+# networks:
+#   nginx-network:
+#     driver: bridge
+#   api-network:
+#     external: true
+#     name: api-network
+#
+# 然后在services.nginx.networks中添加:
+#   - nginx-network
+#   - api-network

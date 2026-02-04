@@ -1,0 +1,12 @@
+# MySQL 从库示例配置（主从复制 - 从库端）
+# 放置于从库 my.cnf 或 /etc/mysql/conf.d/ 下
+
+[mysqld]
+server-id = 2
+relay_log = relay-bin
+read_only = 1
+super_read_only = 1
+
+# 可选：从库也写 binlog（便于再级联或切换为主）
+# log_bin = mysql-bin
+# binlog_format = ROW

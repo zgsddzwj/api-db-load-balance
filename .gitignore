@@ -1,0 +1,72 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+venv/
+env/
+ENV/
+.venv
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 日志文件
+*.log
+logs/
+*.log.*
+
+# Nginx
+nginx/logs/
+nginx/cache/
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/html/
+
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# SSL证书（生产环境应使用安全的证书管理方式）
+# 注意：Let's Encrypt证书通常存储在 /etc/letsencrypt/，不在项目目录
+
+# Docker
+.dockerignore
+
+# 备份文件
+*.bak
+*.backup
+*~

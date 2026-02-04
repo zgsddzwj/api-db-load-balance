@@ -1,0 +1,14 @@
+# MySQL 主库示例配置（主从复制 - 主库端）
+# 放置于主库 my.cnf 或 /etc/mysql/conf.d/ 下
+
+[mysqld]
+server-id = 1
+log_bin = mysql-bin
+binlog_format = ROW
+expire_logs_days = 7
+
+# 可选：指定需要复制的库
+# binlog_do_db = your_app_db
+# 或排除
+# binlog_ignore_db = mysql
+# binlog_ignore_db = information_schema
